@@ -1,4 +1,4 @@
-#prompt_template.py
+# question_generator/prompt_template.py
 
 from langchain.prompts import PromptTemplate
 

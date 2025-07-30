@@ -13,28 +13,39 @@ def analyze_with_groq(video_url: str, language: str, topic: str) -> bool:
         transcript = get_youtube_transcript(video_id)
         
         if not transcript:
+            print("[Groq Analysis] No transcript available.")
             return False
             
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         
         # Prepare the prompt
-        prompt = f"""Analyze if this programming video transcript contains content about:
-        Language: {language}
-        Topic: {topic}
+        prompt = f"""
+        You are an expert video content classifier.
+
+        Determine whether the following transcript from a programming video discusses *both* of the following:
+
+        - Programming Language: {language}
+        - Topic: {topic}
+
+        Respond only with 'true' or 'false'. No explanations.
+
+        Transcript (truncated if long):
+        {transcript[:5000]}
         
-        Transcript:
-        {transcript[:5000]}... [truncated if long]
-        
-        Return only 'true' or 'false'"""
+        Return only 'true' or 'false'
+        """
         
         response = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama3-8b-8192",
             temperature=0.1,
-            max_tokens=10
+            max_tokens=10,
+            stream=False
         )
-        
-        return response.choices[0].message.content.strip().lower() == 'true'
+
+        reply = response.choices[0].message.content.strip().lower()
+        print(f"[Groq Analysis] {reply}")
+        return reply == "true"
         
     except Exception as e:
         print(f"[Groq Analysis Error] {e}")

@@ -4,10 +4,9 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from pydub import AudioSegment
 import os
-import time
 import yt_dlp
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_videos.audio_transcriber import transcribe_audio_with_groq
+from youtube_videos.audio_transcriber import transcribe_audio_with_whisper
 from youtube_videos.utils import extract_video_id
 
 # Create a dedicated directory for audio files
@@ -64,7 +63,7 @@ async def get_or_generate_transcript(video_url: str) -> str:
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         if transcript:
-            return ' '.join([t['text'] for t in transcript])
+            return '\n'.join([t['text'] for t in transcript])
     except Exception as e:
         print(f"YouTube transcript unavailable: {str(e)[:200]}")
 
@@ -76,7 +75,9 @@ async def get_or_generate_transcript(video_url: str) -> str:
 
     transcript = ""
     for path in audio_paths:
-        part = await transcribe_audio_with_groq(path)
+        loop = asyncio.get_event_loop()
+        part = await loop.run_in_executor(None, transcribe_audio_with_whisper, path)
+        
         try:
             if part:
                 transcript += part.strip() + "\n"
@@ -87,7 +88,7 @@ async def get_or_generate_transcript(video_url: str) -> str:
 
     return transcript.strip() if transcript.strip() else None
 
-def split_audio_file(file_path: str) -> str:
+def split_audio_file(file_path: str) -> list[str]:
     """Split audio into 2 parts and return the new file paths"""
     try:
         audio = AudioSegment.from_file(file_path)
@@ -101,6 +102,9 @@ def split_audio_file(file_path: str) -> str:
 
         chunk1.export(chunk1_path, format="mp3")
         chunk2.export(chunk2_path, format="mp3")
+
+        print(f"Original duration: {len(audio)} ms")
+        print(f"Part 1: {len(chunk1)} ms, Part 2: {len(chunk2)} ms")
 
         return [chunk1_path, chunk2_path]
     except Exception as e:

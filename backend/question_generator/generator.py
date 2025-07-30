@@ -1,4 +1,4 @@
-# generator.py
+# question_generator/generator.py
 
 import os
 from dotenv import load_dotenv
